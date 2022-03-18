@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  api:
+    # Pfad zum Verzeichnis, in welches das Dockerfile liegt
+    build: ./api
+    ports:
+      - 3000:3000
+    # Profile können geziehlt gestartet werden: `docker compose --profile api`
+    #  Services ohne Profile starten immer mit
+    #  Wurde auskommentiert, das es das Standardverhalten von `docker compose up` blockiert
+    #profiles:
+    #  - "api"
+    #  - "dev"
+    # Netzwerke auf welche der Service Zugriff hat
+    networks:
+      - ui_api
+    # Verhalten bei Absturz des Containers
+    restart: always
+
+  ui:
+    # Fertiges Image verwenden
+    # NGINX_VERSION: Umgebungsvariabe aus .env
+    #  Kann beim Start überschrieben werden: NGINX_VERSION=1.21.5 docker compose up
+    #  Mögliches Problem bei `NGINX_VERSION=1.21.4 docker compose up`-d`:
+    #  - error getting credentials - err: exit status 1, out: ``
+    #  -> Lösung: erst das Image ziehen `docker pull nginx:1.21.4-alpine` und dann erneut versuchen 
+    image: nginx:${NGINX_VERSION}-alpine
+    ports:
+      - 4000:80
+    # profiles:
+    #   - "ui"
+    #   - "dev"
+    environment:
+      # Umgebungsvariable für das Innere des Containers
+      - DOCKER_COMPOSE_MESSAGE="Hallo von docker compose"
+      # Definiert für den Container eine Umgebungsvariable mit dem Wert, welchen Sie außerhalb hat
+      - PWD
+    env_file:
+      - ui/.env
+    volumes:
+      # Docker-Compose macht aus dem relativen Pfad einen Absoluten
+      # ro = read only
+      - ./ui:/usr/share/nginx/html:ro
+    # Service wird erst nach folgenden Services gestartet
+    depends_on:
+      - api
+    networks:
+      - ui_api
+
+networks:
+  # Name des Netzwerks
+  ui_api:
+    # Typ des Netzwerks
+    driver: bridge
